@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>리듬게임 연습기 PRO (4Key)</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background-color: #0c0c0c;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 1. 화면 위아래로 꽉 차는 노트 화면 */
+        .game-container {
+            position: relative;
+            width: 20vw;               /* 폭을 화면 전체 너비의 30%로 제한 */
+            height: 100vh;
+            background-color: #141414;
+            border-left: 4px solid #2a2a2a;  /* 좌우 구분선 추가 */
+            border-right: 4px solid #2a2a2a;
+            overflow: hidden;
+            margin: 0 auto;            /* 남는 좌우 공간을 균등하게 배분하여 중앙 정렬 */
+        }
+
+        .gear {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .lane {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            border-right: 1px solid #222;
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+        .lane:last-child { border-right: none; }
+
+        /* 판정선 (하단에서 120px 붕 띄워 가시성 확보) */
+        .judgment-line {
+            position: absolute;
+            bottom: 120px;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, #00ffff, #00ffaa);
+            box-shadow: 0 0 15px #00ffff;
+            z-index: 10;
+        }
+
+        /* 키 가이드 */
+        .key-guide {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 120px;
+            display: flex;
+            background-color: #0b0b0b;
+            z-index: 5;
+            border-top: 3px solid #333;
+        }
+
+        .key-hint {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #555;
+            transition: background 0.05s;
+        }
+        .key-hint.active {
+            background: linear-gradient(to top, rgba(0, 255, 200, 0.2), transparent);
+            color: #fff;
+        }
+
+        /* 노트 스타일 (레인 전체 폭 차지하도록 수정) */
+        .note {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            background: linear-gradient(to bottom, #ff2a6d, #910030);
+            border: 1px solid #ff66aa;
+            border-radius: 2px;
+            transform: translateY(-30px);
+        }
+        .note.edge-lane {
+            background: linear-gradient(to bottom, #ffffff, #cccccc);
+            border: 1px solid #ffffff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); /* 하얀 빛 효과 */
+        }
+        .note-tail {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(255, 42, 109, 0.6), rgba(255, 42, 109, 0.2));
+            border-left: 2px solid #ff66aa;
+            border-right: 2px solid #ff66aa;
+            
+            /* [핵심 추가] 롱노트 끝부분에 단노트 같은 가로 마감선을 추가합니다. */
+            border-top: 5px solid #ff66aa; 
+            border-radius: 2px 2px 0 0;
+            
+            z-index: -1;
+        }
+
+        /* 양 끝 레인(하얀색 롱노트) 테일도 동일하게 마감선 추가 */
+        .note.edge-lane .note-tail {
+            background: linear-gradient(to top, rgba(255,255,255,0.5), rgba(255,255,255,0.1));
+            border-left: 2px solid #ffffff;
+            border-right: 2px solid #ffffff;
+            
+            /* [핵심 추가] 하얀색 마감선 */
+            border-top: 5px solid #ffffff; 
+            border-radius: 2px 2px 0 0;
+        }
+
+        /* 판정 및 카운트다운 레이어 */
+        .judgment-display {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0,0,0,0.9);
+            pointer-events: none;
+            z-index: 20;
+            text-align: center;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 90px;
+            font-weight: bold;
+            color: #00ffcc;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+            z-index: 30;
+            pointer-events: none;
+        }
+
+        /* 2. 대시보드 사이드 패널 */
+        .side-panel {
+            width: 320px;
+            height: 100vh;
+            background-color: #111;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            background-color: #181818;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #2a2a2a;
+        }
+
+        h3 { margin: 0 0 12px 0; font-size: 15px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .setting-item:last-child { margin-bottom: 0; }
+        .setting-item label { font-size: 13px; color: #bbb; }
+        .setting-item input {
+            width: 90px;
+            background-color: #252525;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .judge-count {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .judge-count:last-child { margin-bottom: 0; }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #e74c3c;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn:hover { background-color: #c0392b; }
+
+        /* 판정별 색상 명시 */
+        .PERFECT { color: #00ffff; text-shadow: 0 0 8px rgba(0,255,255,0.5); }
+        .GREAT { color: #00ff66; text-shadow: 0 0 8px rgba(0,255,102,0.5); }
+        .GOOD { color: #ffcc00; text-shadow: 0 0 8px rgba(255,204,0,0.5); }
+        .OK { color: #ff9933; text-shadow: 0 0 8px rgba(255,153,51,0.5); }
+        .MEH { color: #b366ff; text-shadow: 0 0 8px rgba(179,102,255,0.5); }
+        .MISS { color: #ff3333; text-shadow: 0 0 8px rgba(255,51,51,0.5); }
+        .STATUS { color: #ffcc00; font-size: 20px; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" id="game-container">
+        <div class="gear">
+            <div class="lane" id="lane-0"></div>
+            <div class="lane" id="lane-1"></div>
+            <div class="lane" id="lane-2"></div>
+            <div class="lane" id="lane-3"></div>
+        </div>
+        <div class="judgment-line"></div>
+        <div class="judgment-display" id="judge-text"></div>
+        <div class="countdown-overlay" id="countdown-text"></div>
+        
+        <div class="key-guide">
+            <div class="key-hint" id="key-0">D</div>
+            <div class="key-hint" id="key-1">F</div>
+            <div class="key-hint" id="key-2">J</div>
+            <div class="key-hint" id="key-3">K</div>
+        </div>
+    </div>
+
+    <div class="side-panel">
+        <div class="panel-section">
+            <h3>구동 상태 [Space]</h3>
+            <div id="status-text" class="STATUS">READY</div>
+        </div>
+
+        <div class="panel-section">
+            <h3>실시간 판정</h3>
+            <div class="judge-count PERFECT">PERFECT <span id="count-PERFECT">0</span></div>
+            <div class="judge-count GREAT">GREAT <span id="count-GREAT">0</span></div>
+            <div class="judge-count GOOD">GOOD <span id="count-GOOD">0</span></div>
+            <div class="judge-count OK">OK <span id="count-OK">0</span></div>
+            <div class="judge-count MEH">MEH <span id="count-MEH">0</span></div>
+            <div class="judge-count MISS">MISS <span id="count-MISS">0</span></div>
+        </div>
+
+        <div class="panel-section">
+            <h3>판정 오차 분포</h3>
+            <div id="error-chart" style="display: flex; align-items: flex-end; justify-content: space-between; height: 100px; background: #080808; padding: 10px 5px; border-radius: 4px; border: 1px solid #222;">
+                </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-top: 4px;">
+                <span>FAST (-125)</span>
+                <span style="color: #00ffcc;">0</span>
+                <span>SLOW (+125)</span>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <h3>속도 및 밀도 설정</h3>
+            <div class="setting-item">
+                <label for="scroll-time">스크롤 타임(ms):</label>
+                <input type="number" id="scroll-time" value="700" step="50" min="100">
+            </div>
+            <div class="setting-item">
+                <label for="base-density">표준 밀도(ms):</label>
+                <input type="number" id="base-density" value="400" step="50" min="50">
+            </div>
+        </div>
+
+        <div class="panel-section" style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn" id="btn-reset">스코어 초기화</button>
+            <button class="btn" id="btn-share" style="background-color: #2ecc71;">현재 패턴 URL 복사</button>
+            <button class="btn" id="btn-guide" style="background-color: #9b59b6;">패턴 커스텀 / LLM 프롬프트 가이드</button>
+        </div>
+
+        <div class="panel-section">
+            <h3>패턴 직접 입력 (JSON 배열)</h3>
+            <textarea id="txt-pattern-input" style="width: 100%; height: 120px; background-color: #0d0d0d; color: #00ffcc; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="[[0, 400, 2, 1.0], [1, 400, 1, 1.0]] 형태로 입력하세요"></textarea>
+            <button class="btn" id="btn-apply-pattern" style="background-color: #34495e; margin-top: 8px; padding: 8px; font-size: 13px;">작성한 패턴 적용하기</button>
+        </div>
+
+        <div id="guide-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px;">
+            <div style="background: #1e1e1e; width: 100%; max-width: 600px; max-height: 85vh; border-radius: 8px; border: 2px solid #333; padding: 25px; overflow-y: auto; font-size: 14px; line-height: 1.6;">
+                <h2 style="margin-top: 0; color: #9b59b6;">🥁 패턴 커스텀 & LLM 작성 가이드</h2>
+                <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+                
+                <h4 style="color: #00ffcc; margin-bottom: 5px;">1. 데이터 작성 문법</h4>
+                <p style="margin: 0 0 10px 0; color: #ccc;">패턴은 <code>[레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치]</code> 형태의 배열 구조입니다.</p>
+                <ul style="padding-left: 20px; margin: 0 0 15px 0; color: #aaa;">
+                    <li><b>레인:</b> 0(D), 1(F), 2(J), 3(K)</li>
+                    <li><b>지연ms:</b> 현재 노트를 떨군 후 다음 노트까지 대기 시간 (0이면 동시치기)</li>
+                    <li><b>소리번호:</b> -1(땡-미스음), 0(딱), 1(스네어), 2(베이스), 3(탐탐), 4(하이햇), 5(피아노)</li>
+                    <li><b>피치/음계:</b> 소리번호가 5(피아노)일 때는 반음 단위의 음계 번호로 작동하며, 그 외 드럼은 배음 배율로 작동합니다. (소수점은 자동 반올림)</li>
+                    <li><b>롱노트유지ms:</b> 롱노트가 판정선에 머무르는 총 길이입니다. 일반 단노트로 만들고 싶다면 <code>null</code>을 입력하면 되며, 이 경우 6~9번 인자도 모두 <code>null</code>로 채웁니다.</li>
+                    <li><b>유지소리, 유지피치:</b> 롱노트를 누르고 있는 동안('HOLDING') 길게 이어질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
+                    <li><b>끝소리, 끝피치:</b> 롱노트가 끝나서 손을 정확히 뗄 때('RELEASE') 찰나에 터질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
+                </ul>
+
+                <h4 style="color: #00ffcc; margin-bottom: 5px;">2. AI(LLM)에게 제작을 요청하는 치트 프롬프트</h4>
+                <p style="margin: 0 0 5px 0; color: #ccc;">아래 문장을 복사해서 ChatGPT, Gemini 같은 AI에게 주면 알아서 코드를 짜줍니다:</p>
+                <div style="background: #0d0d0d; padding: 12px; border-radius: 4px; border: 1px solid #444; font-family: monospace; color: #e2e2e2; white-space: pre-wrap; word-break: break-all; font-size: 12px; user-select: all; cursor: pointer;" title="클릭하여 전체 선택">너는 리듬게임 전문 채보(패턴) 제작자야. 아래 확장된 문법 규격을 완벽히 숙지하고, 연타의 손맛과 롱노트의 재미가 살아있는 [레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치] 형태의 자바스크립트 2차원 배열 채보 데이터를 하나 만들어줘. 다른 부연 설명이나 주석은 일절 제외하고 순수 대괄호 JSON 배열 데이터만 출력해줘.
+
+[채보 규칙 및 조건]
+1. 레인: 0=D, 1=F, 2=J, 3=K
+2. 지연ms가 0이면 동시치기 연출이 됨. 보통 8비트 속도는 200~250ms, 고속 16비트 계단 연타는 100~120ms 단위가 적당함.
+3. 소리번호 5번은 피아노이며, 이때 4번 인자는 반음 음계 번호임 (0=도, 2=레, 4=미, 5=파, 7=솔, 9=라, 11=시, 12=옥타브 위 도).
+4. 단노트는 뒤쪽 5개 인자를 모두 null로 처리할 것. 예: [0, 230, 5, 4, null, null, null, null, null]
+5. 롱노트가 끝나는 타이밍(유지 시간이 끝나는 지점)과 동시에 "같은 레인"에서 다음 노트가 곧바로 시작되는 무리한 배치는 유저가 처리하기 힘드므로 절대 금지할 것. 롱노트가 끝나면 최소한 한 박자 이상 해당 레인을 비워주거나 다른 레인으로 노트를 넘겨줘.
+6. 웅장한 빌드업, 고속 계단 난타, 그리고 한 손으로 롱노트를 누르면서 다른 손으로 트릴을 치는 복합 패턴을 섞어서 1분 내외 분량의 완성도 높은 피아노 곡을 짜줘.</div>
+                
+                <button id="btn-close-guide" style="margin-top: 25px; width: 100%; padding: 12px; background: #e74c3c; border: none; color: #fff; font-weight: bold; border-radius: 4px; cursor: pointer;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- [ 오디오 시스템 추가 ] ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// 드럼 사운드 신시사이저 함수
+function playDrum(type, pitch = 1) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    
+    // -1번: 예능 정답 오답용 '땡!' 사운드 (금속성 벨 사운드 합성)
+    if (type === -1) {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        // 맑은 "땡" 소리를 만드는 2옥타브 이상의 고음 주파수 복합 구성
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880 * pitch, now); // 기본 A5 음역대
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1200 * pitch, now); // 금속성 배음 유도
+        
+        // 소리가 켜졌다가 잔향이 남으며 서서히 사라지는 볼륨 곡선
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 여운 지속
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc1.start(now); osc1.stop(now + 0.8);
+        osc2.start(now); osc2.stop(now + 0.8);
+    }
+    // 0번: '딱' (메트로놈/틱 사운드)
+    else if (type === 0) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000 * pitch, now);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.06);
+    }
+    // 1번: 스네어 드럼 (화이트 노이즈 + 스냅)
+    else if (type === 1) {
+        // 노이즈 생성
+        const bufferSize = audioCtx.sampleRate * 0.2;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        
+        const noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.value = 1000 * pitch;
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.3, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
+        noise.start(now);
+    }
+    // 2번: 베이스 드럼 (쿵 - 로우 주파수 드롭)
+    else if (type === 2) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(150 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.12);
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.16);
+    }
+    // 3번: 탐탐 (중저음 둥 - 미디엄 주파수 드롭)
+    else if (type === 3) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(300 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+    }
+    // 4번: 하이햇 (챳 - 초고음 하이패스 노이즈)
+    else if (type === 4) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(10000 * pitch, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.05);
+    }
+    // 5번: 피아노 (부드러운 배음 구조와 자연스러운 디케이)
+    else if (type === 5) {
+        // 소수점 반올림 처리하여 정수 음계로 변환
+        const noteOffset = Math.round(pitch); 
+        
+        // 기준음: C4(도) = 261.63Hz -> 반음씩 올라가는 공식: 주파수 = 261.63 * 2^(오프셋/12)
+        const targetFrequency = 261.63 * Math.pow(2, noteOffset / 12);
+
+        // 정교한 피아노 톤을 위한 멀티 오실레이터 세팅 (FM 신시사이저 방식)
+        const carrier = audioCtx.createOscillator();   // 기본 알맹이 톤
+        const modulator = audioCtx.createOscillator(); // 쇠소리 배음 타격감 담당
+        const modGain = audioCtx.createGain();
+        const mainGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+
+        // 1. 커리어 (기본 사인파)
+        carrier.type = 'sine';
+        carrier.frequency.setValueAtTime(targetFrequency, now);
+
+        // 2. 모듈레이터 (타격 순간 쨍한 느낌을 주는 삼각파)
+        modulator.type = 'triangle';
+        modulator.frequency.setValueAtTime(targetFrequency * 2, now); // 2배음
+        modGain.gain.setValueAtTime(targetFrequency * 1.5, now);      // 변조 깊이
+        modGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);  // 타격 직후 소멸
+
+        // 3. 로우패스 필터로 부드러운 잔향 유도
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(targetFrequency * 4, now);
+        filter.frequency.exponentialRampToValueAtTime(targetFrequency * 1.2, now + 0.4);
+
+        // 4. 볼륨 엔벨로프 (피아노 특유의 감쇠)
+        mainGain.gain.setValueAtTime(0.5, now);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 자연스러운 감쇠
+
+        // 연결 회로 구성
+        modulator.connect(modGain);
+        modGain.connect(carrier.frequency); // 주파수 변조(FM) 적용
+        carrier.connect(filter);
+        filter.connect(mainGain);
+        mainGain.connect(audioCtx.destination);
+
+        // 재생 시작 및 종료
+        modulator.start(now); modulator.stop(now + 0.8);
+        carrier.start(now);   carrier.stop(now + 0.8);
+    }
+}
+// 롱노트 전용 루프 오디오
+function startHoldSound(type, pitch) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    // 피아노(5번) 계열이면 음계 공식 적용, 그 외 드럼은 기존 피치 공식 적용
+    let freq = 440;
+    if (type === 5) {
+        freq = 261.63 * Math.pow(2, Math.round(pitch) / 12);
+        osc.type = 'triangle'; // 부드러운 지속음
+    } else {
+        freq = (type === 2 ? 60 : type === 3 ? 150 : 300) * pitch;
+        osc.type = 'sine';
+    }
+    
+    osc.frequency.setValueAtTime(freq, now);
+    
+    // 누르기 시작할 때 뚝 끊기는 소리(Pop 노이즈) 방지를 위해 0.03초간 페이드인
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.03); 
+    
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    
+    // 이 객체 자체를 리턴하여 나중에 꺼버릴 수 있도록 제어권을 줍니다.
+    return { osc, gain };
+}
+
+// --- [ 커스텀 패턴 데이터 세팅 ] ---
+// 규칙 1: 단일 숫자 형태 -> 입력된 순서대로 타격, 간격은 대시보드의 '표준 밀도' 적용
+// 규칙 2: [라인, 간격ms] 형태 -> 지정한 라인에 노트를 떨구고, '해당 노트가 나온 뒤' 적힌 ms만큼 쉬고 다음 노트 대기
+//          (※ 간격값을 0으로 주면 다음 노트와 동시에 생성되는 '동시치기'가 구현됩니다)
+let CUSTOM_PATTERN = [
+  // 1. INTRO: 잔잔한 피아노 화음과 기본 드럼 박자 (단노트 단축 문법 적극 활용)
+  [0, 460, 5, 0],
+  [3, 460, 5, 4],
+  [1, 230, 5, 7],
+  [2, 230, 5, 12],
+  [0, 0, 2, 1.0], [3, 920, 4, 1.0],
+  
+  [0, 460, 5, 2],
+  [3, 460, 5, 5],
+  [1, 230, 5, 9],
+  [2, 230, 5, 14],
+  [0, 0, 2, 1.0], [1, 0, 1, 1.0], [2, 0, 1, 1.0], [3, 920, 4, 1.2],
+
+  // 2. VERSE: 한 손 롱노트 유지 + 다른 손 정박 타격 (기본기 훈련)
+  [0, 460, 5, -3, 920, 5, -3, null, null],
+  [2, 230, 5, 4],
+  [3, 230, 5, 7],
+  [2, 230, 5, 9],
+  [1, 230, 5, 11],
+  
+  [3, 460, 5, 0, 920, 5, 0, null, null],
+  [1, 230, 5, 7],
+  [0, 230, 5, 4],
+  [1, 230, 5, 2],
+  [2, 230, 5, 0],
+
+  // 3. BUILD-UP: 박자가 쪼개지는 8비트 기본 계단 연타 구간
+  [0, 230, 5, 0],
+  [1, 230, 5, 2],
+  [2, 230, 5, 4],
+  [3, 230, 5, 7],
+  [2, 230, 5, 9],
+  [1, 230, 5, 7],
+  [0, 230, 5, 4],
+  [3, 460, 4, 1.0],
+
+  [3, 230, 5, 12],
+  [2, 230, 5, 11],
+  [1, 230, 5, 9],
+  [0, 230, 5, 7],
+  [1, 230, 5, 4],
+  [2, 230, 5, 7],
+  [3, 230, 5, 11],
+  [0, 0, 2, 1.0], [1, 0, 2, 1.0], [2, 460, 4, 1.0],
+
+  // 4. CLIMAX: 드럼 비트와 피아노 16비트 고속 계단 리믹스 (손맛 극대화)
+  [0, 0, 2, 1.0], [1, 115, 5, 0],
+  [2, 115, 5, 2],
+  [3, 115, 5, 4],
+  [2, 115, 5, 7],
+  [0, 0, 2, 1.0], [1, 115, 5, 9],
+  [2, 115, 5, 7],
+  [3, 115, 5, 11],
+  [2, 115, 5, 12],
+
+  // 왼손 롱노트 구속 상태에서 오른손 계단 치기 (교차 배치 회피 적용)
+  [0, 0, 5, -3, 920, 5, -3, null, null],
+  [1, 115, 5, 4],
+  [2, 115, 5, 7],
+  [3, 115, 5, 11],
+  [2, 115, 5, 9],
+  [1, 115, 5, 7],
+  [2, 115, 5, 4],
+  [3, 230, 5, 2],
+
+  // 하이라이트 종지부 복합 동시타
+  [0, 0, 5, 0], [1, 230, 5, 4],
+  [2, 0, 5, 7], [3, 230, 5, 12],
+  [0, 0, 5, 12], [1, 0, 5, 9], [2, 0, 5, 7], [3, 460, 5, 4],
+  [0, 0, 2, 1.2], [1, 0, 1, 1.2], [2, 0, 1, 1.2], [3, 460, 4, 1.5],
+
+  // 5. OUTRO: 양 끝 레인 롱노트로 여운을 주며 마무리 (마감선 시각 연출)
+  [1, 230, 5, 7],
+  [2, 230, 5, 4],
+  [0, 0, 5, 0, 1380, 5, 0, null, null],
+  [3, 0, 5, 12, 1380, 5, 12, null, null],
+  [1, 0, 5, 4, 1380, 5, 4, null, null],
+  [2, 4000, 5, 7, 1380, 5, 7, null, null]
+];
+
+// 시스템 판정 스펙
+const KEYS = ['d', 'f', 'j', 'k'];
+const JUDGEMENT = { PERFECT: 16, GREAT: 37, GOOD: 70, OK: 100, MEH: 124 };
+
+// 글로벌 제어 변수
+let isPlaying = false;
+let isCountingDown = false;
+let scrollTime = 500; 
+let baseDensity = 100; 
+let scoreStats = { PERFECT: 0, GREAT: 0, GOOD: 0, OK: 0, MEH: 0, MISS: 0 };
+
+let activeNotes = [];
+let lastTime = 0;
+let patternIdx = 0;
+let spawnTimer = 0;
+
+// DOM 캐싱
+const lanes = [document.getElementById('lane-0'), document.getElementById('lane-1'), document.getElementById('lane-2'), document.getElementById('lane-3')];
+const keyHints = [document.getElementById('key-0'), document.getElementById('key-1'), document.getElementById('key-2'), document.getElementById('key-3')];
+const judgeText = document.getElementById('judge-text');
+const statusText = document.getElementById('status-text');
+const countdownText = document.getElementById('countdown-text');
+const container = document.getElementById('game-container');
+
+// 전체 높이 핸들링 계산용 수치
+let gearHeight = container.clientHeight;
+let judgeLineY = gearHeight - 120; // 상단 끝에서 판정선까지의 px 거리
+
+window.addEventListener('resize', () => {
+    gearHeight = container.clientHeight;
+    judgeLineY = gearHeight - 120;
+});
+
+// --- [ 게임 루프 코어 ] ---
+function gameLoop(timestamp) {
+    if (!isPlaying || isCountingDown) {
+        lastTime = 0;
+        return;
+    }
+    if (!lastTime) lastTime = timestamp;
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    // 1. 밀도 기반 노트 스폰 제어
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+        const spawnTimeGroup = performance.now() + spawnTimer; 
+        let targetLane = 0;
+        let nextInterval = baseDensity;
+        
+        // 9단 레이아웃 변수 초기화
+        let dType = 0, dPitch = 1.0, lnLength = 0, holdType = null, holdPitch = 1.0, endType = null, endPitch = 1.0;
+
+        const currentData = CUSTOM_PATTERN[patternIdx];
+
+        if (Array.isArray(currentData)) {
+            targetLane = currentData[0];
+            nextInterval = currentData[1] ?? baseDensity;
+            dType = currentData[2] ?? 0;
+            dPitch = currentData[3] ?? 1.0;
+            
+            // [보완] 배열 길이가 4개 이하라면 뒤쪽 롱노트 인자들을 자동으로 null/0 처리해 줌!
+            if (currentData.length <= 4) {
+                lnLength = 0;
+                holdType = null;
+                holdPitch = 1.0;
+                endType = null;
+                endPitch = 1.0;
+            } else {
+                // 기존 9단 구조 파싱
+                lnLength = currentData[4] || 0;
+                holdType = currentData[5];
+                holdPitch = currentData[6] || 1.0;
+                endType = currentData[7];
+                endPitch = currentData[8] || 1.0;
+            }
+        }
+
+        if (dType === 0 && Array.isArray(currentData) && currentData[2] === null) {
+            dPitch = 0.8 + (targetLane * 0.2);
+        }
+
+        // 스폰할 때 모든 롱노트 제어 정보 주입
+        spawnNote(targetLane, spawnTimeGroup, dType, dPitch, lnLength, holdType, holdPitch, endType, endPitch); 
+
+        patternIdx = (patternIdx + 1) % CUSTOM_PATTERN.length;
+        spawnTimer += nextInterval; 
+    }
+
+    // 2. 하강 프레임 제어 및 미스 판단
+    const now = performance.now();
+    // 오토 미스 및 롱노트가 떼어지지 않고 완전히 지나쳤을 때의 예외 처리 추가
+    for (let i = activeNotes.length - 1; i >= 0; i--) {
+        const note = activeNotes[i];
+        const elapsed = now - note.spawnTime;
+        const progress = elapsed / scrollTime;
+        const currentY = progress * judgeLineY;
+
+        if (note.state !== 'HOLDING') {
+            note.element.style.transform = `translateY(${currentY}px)`;
+        } else {
+            note.element.style.transform = `translateY(${judgeLineY}px)`;
+            const remainingTail = note.longLength - (elapsed - scrollTime);
+            const tailEl = note.element.querySelector('.note-tail');
+            if (tailEl) {
+                tailEl.style.height = `${Math.max(0, (remainingTail / scrollTime) * judgeLineY)}px`;
+            }
+        }
+
+        const limit = note.isLong ? (scrollTime + note.longLength + JUDGEMENT.MEH) : (scrollTime + JUDGEMENT.MEH);
+        if (elapsed > limit) {
+            // [수정] 꾹 누르고 있다가 중간에 노트를 놓쳐서 미스가 난 경우에도 즉시 지속음 차단
+            if (note.holdAudioSource) {
+                const audioNow = audioCtx.currentTime;
+                note.holdAudioSource.gain.gain.cancelScheduledValues(audioNow);
+                note.holdAudioSource.gain.gain.linearRampToValueAtTime(0, audioNow + 0.02);
+                note.holdAudioSource.osc.stop(audioNow + 0.03);
+            }
+            triggerJudgement('MISS');
+            note.element.remove();
+            activeNotes.splice(i, 1);
+        }
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+function spawnNote(laneIdx, spawnTime, dType, dPitch, lnLength, holdType, holdPitch, endType, endPitch) {
+    if (laneIdx < 0 || laneIdx > 3) return;
+    
+    const noteEl = document.createElement('div');
+    noteEl.className = 'note';
+    if (laneIdx === 0 || laneIdx === 3) noteEl.classList.add('edge-lane');
+
+    // 롱노트일 경우 하단 스타일 추가 및 테일(꼬리) 엘리먼트 동적 생성
+    if (lnLength > 0) {
+        noteEl.classList.add('long-note');
+        // 스크롤 속도 대비 픽셀 길이 계산
+        const tailHeight = (lnLength / scrollTime) * judgeLineY;
+        const tailEl = document.createElement('div');
+        tailEl.className = 'note-tail';
+        tailEl.style.height = `${tailHeight}px`;
+        tailEl.style.bottom = '100%'; // 노트 머리 위쪽으로 부착
+        noteEl.appendChild(tailEl);
+    }
+
+    lanes[laneIdx].appendChild(noteEl);
+
+    const elapsed = performance.now() - spawnTime;
+    const progress = elapsed / scrollTime;
+    const initialY = progress * judgeLineY;
+    noteEl.style.transform = `translateY(${initialY}px)`;
+
+    activeNotes.push({
+        element: noteEl,
+        lane: laneIdx,
+        spawnTime: spawnTime,
+        drumType: dType,
+        drumPitch: dPitch,
+        // 롱노트 전용 메타데이터 채우기
+        isLong: lnLength > 0,
+        longLength: lnLength,
+        holdType: holdType,
+        holdPitch: holdPitch,
+        endType: endType,
+        endPitch: endPitch,
+        state: 'WAIT', // WAIT(대기) -> HOLDING(누르는중) -> DONE(완료)
+        holdIntervalId: null // 유지 사운드 반복용 타이머 공간
+    });
+}
+
+// --- [ 카운트다운 및 플레이 제어 ] ---
+function togglePlay() {
+    if (isCountingDown) return; // 카운트다운 중에 스페이스 연타 방지
+
+    if (isPlaying) {
+        // 일시정지 상태로 전환
+        isPlaying = false;
+        statusText.innerText = "PAUSED";
+        statusText.style.color = "#ffffff";
+    } else {
+        // 정지 후 재시작 시 완전히 초기화 후 카운트다운 진행
+        clearFieldNotes();
+        patternIdx = 0;
+        spawnTimer = 0;
+        
+        isCountingDown = true;
+        statusText.innerText = "COUNTDOWN";
+        statusText.style.color = "#00ffcc";
+        
+        let count = 3;
+        countdownText.innerText = count;
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownText.innerText = count;
+            } else {
+                clearInterval(interval);
+                countdownText.innerText = "";
+                isCountingDown = false;
+                isPlaying = true;
+                statusText.innerText = "PLAYING";
+                statusText.style.color = "#ffcc00";
+                requestAnimationFrame(gameLoop);
+            }
+        }, 1000);
+    }
+}
+
+// 화면 내 잔여 노트 제거 함수
+function clearFieldNotes() {
+    activeNotes.forEach(n => n.element.remove());
+    activeNotes = [];
+}
+
+// --- [ judgeInput 함수 수정: 키를 '눌렀을 때' 처리 ] ---
+function judgeInput(laneIndex) {
+    const now = performance.now();
+    // 해당 레인에서 아직 처리되지 않은 첫 노트를 탐색
+    const laneNotes = activeNotes.filter(n => n.lane === laneIndex && n.state !== 'DONE');
+    if (laneNotes.length === 0) return;
+
+    const targetNote = laneNotes[0];
+    
+    // 만약 이미 누르고 있는 롱노트라면 중복 실행 방지
+    if (targetNote.state === 'HOLDING') return;
+
+    const elapsed = now - targetNote.spawnTime;
+    const timeDiff = elapsed - scrollTime; 
+    const absDiff = Math.abs(timeDiff);
+
+    let finalJudge = null;
+    if (absDiff <= JUDGEMENT.PERFECT) finalJudge = 'PERFECT';
+    else if (absDiff <= JUDGEMENT.GREAT) finalJudge = 'GREAT';
+    else if (absDiff <= JUDGEMENT.GOOD) finalJudge = 'GOOD';
+    else if (absDiff <= JUDGEMENT.OK) finalJudge = 'OK';
+    else if (absDiff <= JUDGEMENT.MEH) finalJudge = 'MEH';
+    else if (timeDiff > 0) return;
+
+    if (finalJudge) {
+        playDrum(targetNote.drumType, targetNote.drumPitch);
+        triggerJudgement(finalJudge, timeDiff);
+
+        if (targetNote.isLong) {
+            targetNote.state = 'HOLDING';
+            targetNote.element.classList.add('holding');
+
+            // [수정] 기존 setInterval을 삭제하고, 지속음 생성 함수를 트리거하여 오디오 노드를 직접 보관합니다.
+            if (targetNote.holdType !== null && targetNote.holdType !== undefined) {
+                targetNote.holdAudioSource = startHoldSound(targetNote.holdType, targetNote.holdPitch);
+            }
+        } else {
+            targetNote.element.remove();
+            activeNotes = activeNotes.filter(n => n !== targetNote);
+        }
+    }
+}
+// 키를 '뗐을 때' 롱노트 해제 판정
+function judgeRelease(laneIndex) {
+    const now = performance.now();
+    const holdingNotes = activeNotes.filter(n => n.lane === laneIndex && n.state === 'HOLDING');
+    if (holdingNotes.length === 0) return;
+
+    const targetNote = holdingNotes[0];
+    
+    // [수정] 손을 뗐으므로 홀딩 지속 사운드를 페이드아웃 후 완전 차단
+    if (targetNote.holdAudioSource) {
+        const audioNow = audioCtx.currentTime;
+        targetNote.holdAudioSource.gain.gain.cancelScheduledValues(audioNow);
+        targetNote.holdAudioSource.gain.gain.setValueAtTime(targetNote.holdAudioSource.gain.gain.value, audioNow);
+        targetNote.holdAudioSource.gain.gain.linearRampToValueAtTime(0, audioNow + 0.05); // 0.05초 페이드아웃
+        targetNote.holdAudioSource.osc.stop(audioNow + 0.06);
+    }
+
+    const targetReleaseTime = targetNote.spawnTime + scrollTime + targetNote.longLength;
+    const timeDiff = now - targetReleaseTime;
+    const absDiff = Math.abs(timeDiff);
+
+    let releaseJudge = null;
+    if (absDiff <= JUDGEMENT.PERFECT) releaseJudge = 'PERFECT';
+    else if (absDiff <= JUDGEMENT.GREAT) releaseJudge = 'GREAT';
+    else if (absDiff <= JUDGEMENT.GOOD) releaseJudge = 'GOOD';
+    else if (absDiff <= JUDGEMENT.OK) releaseJudge = 'OK';
+    else if (absDiff <= JUDGEMENT.MEH) releaseJudge = 'MEH';
+
+    if (releaseJudge) {
+        if (targetNote.endType !== null && targetNote.endType !== undefined) {
+            playDrum(targetNote.endType, targetNote.endPitch);
+        }
+        triggerJudgement(releaseJudge, timeDiff);
+    } else {
+        triggerJudgement('MISS');
+    }
+
+    targetNote.element.remove();
+    activeNotes = activeNotes.filter(n => n !== targetNote);
+}
+
+function triggerJudgement(type, diff = 0) {
+    scoreStats[type]++;
+    document.getElementById(`count-${type}`).innerText = scoreStats[type];
+
+    let timingDetail = "";
+    if (type !== 'MISS' && type !== 'PERFECT') {
+        timingDetail = diff < 0 ? " <span style='font-size:18px;color:#ff5555;'>FAST</span>" : " <span style='font-size:18px;color:#5555ff;'>SLOW</span>";
+    }
+    judgeText.innerHTML = `<span class="${type}">${type}</span>${timingDetail}`;
+
+    // [추가] MISS 판정이 떨어졌을 때 방금 만든 예능 '땡' 소리 리액션 출력
+    if (type === 'MISS') {
+        playDrum(-1, 1.0); // 1.0은 정피치, 필요시 0.9 등으로 조절 가능
+    }
+
+    // --- [ 그래프 실시간 업데이트 로직 추가 ] ---
+    if (type !== 'MISS') { // MISS는 오차 계산에서 제외
+        // diff 값을 -125 ~ +125 사이로 클램핑(제한)
+        const clampedDiff = Math.max(-MAX_MS, Math.min(MAX_MS, diff));
+        // 오차 값을 배열의 인덱스(0 ~ 24)로 변환
+        const bucketIdx = Math.floor((clampedDiff + MAX_MS) / BUCKET_SIZE);
+        
+        // 해당 구간 카운트 증가
+        errorBuckets[bucketIdx]++;
+        
+        // 현재 최고 빈도수를 가진 기둥의 값을 기준으로 상대적 높이(%) 계산 (정규화)
+        const maxCount = Math.max(...errorBuckets);
+        
+        // 모든 막대의 높이와 색상을 리프레시
+        errorBuckets.forEach((count, idx) => {
+            const bar = document.getElementById(`chart-bar-${idx}`);
+            if (!bar) return;
+            
+            // 높이 계산 (최대 높이 100%)
+            const heightPercent = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            bar.style.height = `${heightPercent}%`;
+            
+            // 데이터가 들어온 막대는 판정 색상과 연동하여 시각화 (중앙에 가까울수록 민트색)
+            if (count > 0) {
+                const centerIdx = Math.floor(errorBuckets.length / 2);
+                const distanceFromCenter = Math.abs(idx - centerIdx);
+                
+                if (distanceFromCenter <= 1) {
+                    bar.style.backgroundColor = "#00ffcc"; // PERFECT 구간 (정중앙)
+                } else if (distanceFromCenter <= 3) {
+                    bar.style.backgroundColor = "#00ff66"; // GREAT 구간
+                } else if (distanceFromCenter <= 6) {
+                    bar.style.backgroundColor = "#ffcc00"; // GOOD 구간
+                } else {
+                    bar.style.backgroundColor = "#ff3333"; // 바깥쪽 오차 구간
+                }
+            }
+        });
+    }
+}
+
+function resetScore() {
+    scoreStats = { PERFECT: 0, GREAT: 0, GOOD: 0, OK: 0, MEH: 0, MISS: 0 };
+    for (let key in scoreStats) {
+        document.getElementById(`count-${key}`).innerText = 0;
+    }
+    judgeText.innerHTML = "";
+    
+    // [추가] 그래프 데이터 배열 리셋 및 스타일 초기화
+    errorBuckets.fill(0);
+    initErrorChart();
+}
+
+// --- [ 오차 분포 그래프 시스템 ] ---
+// -125ms부터 +125ms까지 10ms 단위로 쪼개어 총 25개의 막대(구간)를 생성합니다.
+const BUCKET_SIZE = 10; 
+const MAX_MS = 125;
+// 각 구간의 카운트를 저장할 배열 (0으로 초기화)
+let errorBuckets = Array(Math.floor((MAX_MS * 2) / BUCKET_SIZE) + 1).fill(0);
+
+// HTML에 빈 막대 그래프 기둥들을 세팅하는 함수
+function initErrorChart() {
+    const chartContainer = document.getElementById('error-chart');
+    chartContainer.innerHTML = ''; // 초기화
+    
+    errorBuckets.forEach((_, idx) => {
+        const bar = document.createElement('div');
+        bar.id = `chart-bar-${idx}`;
+        bar.style.flex = "1";
+        bar.style.margin = "0 1px";
+        bar.style.height = "0px"; // 처음엔 데이터가 없으므로 높이 0
+        bar.style.backgroundColor = "#444"; // 기본 색상 (어두운 회색)
+        bar.style.transition = "height 0.1s, background-color 0.2s";
+        
+        // 정중앙(0ms 근처) 기둥은 푸른색 계열로 가이드라인 주기
+        if (idx === Math.floor(errorBuckets.length / 2)) {
+            bar.style.backgroundColor = "#005555";
+        }
+        
+        chartContainer.appendChild(bar);
+    });
+}
+
+// 페이지 로드 시 그래프 구조를 먼저 만듭니다.
+// 스크립트 하단 이벤트 바인딩 부근이나 window.onload 등에 배치하세요.
+initErrorChart();
+
+// 1. 현재 패턴 데이터를 Base64로 압축 인코딩하여 공유 가능한 URL로 복사하는 함수
+function shareCurrentPattern() {
+    try {
+        // 복잡한 배열 데이터를 문자열로 변환 후 압축을 위해 Base64 인코딩 진행
+        const jsonStr = JSON.stringify(CUSTOM_PATTERN);
+        const encodedData = btoa(encodeURIComponent(jsonStr));
+        
+        // 현재 브라우저 주소 뒤에 ?pattern=값을 결합한 URL 생성
+        const shareUrl = `${window.location.origin}${window.location.pathname}?pattern=${encodedData}`;
+        
+        // 클립보드 복사 실행
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert("공유 URL이 클립보드에 복사되었습니다! 이 주소를 다른 사람에게 보내주세요.");
+        }).catch(err => {
+            console.error("클립보드 복사 실패, 수동 복사용 주소:", shareUrl);
+            alert("복사에 실패했습니다. 콘솔 창(F12)에서 주소를 복사해 주세요.");
+        });
+    } catch (e) {
+        alert("패턴 데이터를 인코딩하는 중 오류가 발생했습니다.");
+    }
+}
+
+// 2. URL에 포함된 공유 패턴을 읽어서 파싱하는 함수
+function loadSharedPattern() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patternParam = urlParams.get('pattern');
+    
+    if (patternParam) {
+        try {
+            const decodedData = decodeURIComponent(atob(patternParam));
+            const parsedPattern = JSON.parse(decodedData);
+            
+            if (Array.isArray(parsedPattern)) {
+                // 기존 패턴을 전달받은 공유 패턴으로 전격 교체
+                CUSTOM_PATTERN.length = 0;
+                parsedPattern.forEach(item => CUSTOM_PATTERN.push(item));
+                
+                // 가시적인 알림 제공
+                statusText.innerText = "공유 패턴 로드 완료!";
+                statusText.style.color = "#2ecc71";
+                setTimeout(() => {
+                    statusText.innerText = "READY";
+                    statusText.style.color = "#ffcc00";
+                }, 2000);
+            }
+        } catch (e) {
+            alert("공유받은 패턴 데이터의 규격이 올바르지 않거나 훼손되었습니다.");
+        }
+    }
+}
+
+// 3. 모달 및 공유 버튼 이벤트 바인딩 등록
+document.getElementById('btn-share').addEventListener('click', shareCurrentPattern);
+
+const modal = document.getElementById('guide-modal');
+document.getElementById('btn-guide').addEventListener('click', () => modal.style.display = 'flex');
+document.getElementById('btn-close-guide').addEventListener('click', () => modal.style.display = 'none');
+
+// 4. 페이지 구동 즉시 공유 패턴 유무 검증 프로세스 실행
+loadSharedPattern();
+
+// --- [ 패턴 텍스트 직접 입력 시스템 ] ---
+
+const patternInputArea = document.getElementById('txt-pattern-input');
+
+// 1. 현재 불러와져 있는 패턴 데이터를 텍스트창에 기본으로 보여주는 함수
+function updateInputAreaWithCurrent() {
+    // 가독성을 위해 예쁘게 포맷팅하여 텍스트창에 주입
+    patternInputArea.value = JSON.stringify(CUSTOM_PATTERN, null, 2);
+}
+
+// 2. 입력창의 텍스트를 읽어와 실제 게임 패턴으로 적용하는 함수
+function applyCustomTextPattern() {
+    const rawValue = patternInputArea.value.trim();
+    
+    if (!rawValue) {
+        alert("입력창이 비어 있습니다. 패턴 배열을 넣어주세요.");
+        return;
+    }
+
+    try {
+        // 텍스트를 자바스크립트 객체/배열로 파싱
+        const parsedData = JSON.parse(rawValue);
+        
+        // 유효성 검사: 대괄호로 묶인 배열 형태가 맞는지 체크
+        if (!Array.isArray(parsedData)) {
+            alert("올바른 배열 형식이 아닙니다. 전체를 대괄호 [ ] 로 감싸주세요.");
+            return;
+        }
+
+        // 기존 패턴을 지우고 새 패턴으로 교체
+        CUSTOM_PATTERN.length = 0;
+        parsedData.forEach(item => CUSTOM_PATTERN.push(item));
+
+        // 게임 요소 리셋 (진행도 초기화)
+        clearFieldNotes();
+        patternIdx = 0;
+        spawnTimer = 0;
+
+        // UI 시각 피드백
+        statusText.innerText = "새 패턴 적용 완료!";
+        statusText.style.color = "#2ecc71";
+        
+        // 스페이스바를 누르면 바로 새 패턴으로 시작할 수 있도록 안내
+        setTimeout(() => {
+            if (!isPlaying) {
+                statusText.innerText = "READY";
+                statusText.style.color = "#ffcc00";
+            }
+        }, 2000);
+
+    } catch (e) {
+        alert("문법 오류가 발생했습니다. 대괄호, 쉼표(,)가 누락되었거나 형식이 맞지 않습니다.\n오류 내용: " + e.message);
+    }
+}
+
+// 3. 이벤트 바인딩 등록
+document.getElementById('btn-apply-pattern').addEventListener('click', applyCustomTextPattern);
+
+// 4. [기능 확장] 페이지가 처음 켜지거나, URL 공유 패턴을 받았을 때도 입력창 텍스트를 동기화하도록 수정
+// 로드가 끝나는 시점에 텍스트창 채우기
+setTimeout(updateInputAreaWithCurrent, 200);
+
+// --- [ 이벤트 바인딩 ] ---
+window.addEventListener('keydown', (e) => {
+    if (e.key === ' ') {
+        e.preventDefault();
+        togglePlay();
+        return;
+    }
+
+    if (!isPlaying || isCountingDown) return;
+
+    const keyIdx = KEYS.indexOf(e.key.toLowerCase());
+    if (keyIdx !== -1 && !e.repeat) {
+        keyHints[keyIdx].classList.add('active');
+        judgeInput(keyIdx);
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    const keyIdx = KEYS.indexOf(e.key.toLowerCase());
+    if (keyIdx !== -1) {
+        keyHints[keyIdx].classList.remove('active');
+        // [추가] 키를 뗄 때 롱노트 릴리즈 판정을 가동합니다.
+        if (isPlaying && !isCountingDown) {
+            judgeRelease(keyIdx);
+        }
+    }
+});
+
+document.getElementById('scroll-time').addEventListener('input', (e) => {
+    let val = parseInt(e.target.value);
+    if (!isNaN(val) && val >= 100) scrollTime = val;
+});
+
+document.getElementById('base-density').addEventListener('input', (e) => {
+    let val = parseInt(e.target.value);
+    if (!isNaN(val) && val >= 50) baseDensity = val;
+});
+
+document.getElementById('btn-reset').addEventListener('click', resetScore);
+</script>
+</body>
+</html>
