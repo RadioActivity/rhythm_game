@@ -20,8 +20,13 @@
 
         /* 1. 화면 위아래로 꽉 차는 노트 화면 */
         .game-container {
-            position: relative;
-            width: 20vw;               /* 폭을 화면 전체 너비의 30%로 제한 */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20vw;
+            max-width: 300px;
+            min-width: 400px;               /* 폭을 화면 전체 너비의 30%로 제한 */
             height: 100vh;
             background-color: #141414;
             border-left: 4px solid #2a2a2a;  /* 좌우 구분선 추가 */
@@ -172,6 +177,58 @@
             border: 1px solid #2a2a2a;
         }
 
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 320px;
+            height: 100vh;
+            background-color: #111111;
+            border-left: 2px solid #222;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            transition: transform 0.3s ease; /* 부드럽게 열고 닫히는 애니메이션 */
+        }
+
+        /* 사이드바가 닫혔을 때 오른쪽 화면 밖으로 밀어냄 */
+        .sidebar.closed {
+            transform: translateX(100%);
+        }
+
+        /* 내부 콘텐츠 스크롤 바 보존 */
+        .sidebar-content {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        /* 사이드바 토글 버튼 스타일 */
+        .toggle-btn {
+            position: absolute;
+            left: -40px; /* 사이드바 왼쪽 벽 바깥에 부착 */
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: #111111;
+            color: #00ffcc;
+            border: 2px solid #222;
+            border-right: none; /* 사이드바와 자연스럽게 이어지도록 */
+            border-radius: 8px 0 0 8px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background-color: #222;
+            color: #ffffff;
+        }
+
         h3 { margin: 0 0 12px 0; font-size: 15px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
         
         .setting-item {
@@ -245,268 +302,103 @@
         </div>
     </div>
 
-    <div class="side-panel">
-        <div class="panel-section">
-            <h3>구동 상태 [Space]</h3>
-            <div id="status-text" class="STATUS">READY</div>
-        </div>
-
-        <div class="panel-section">
-            <h3>실시간 판정</h3>
-            <div class="judge-count PERFECT">PERFECT <span id="count-PERFECT">0</span></div>
-            <div class="judge-count GREAT">GREAT <span id="count-GREAT">0</span></div>
-            <div class="judge-count GOOD">GOOD <span id="count-GOOD">0</span></div>
-            <div class="judge-count OK">OK <span id="count-OK">0</span></div>
-            <div class="judge-count MEH">MEH <span id="count-MEH">0</span></div>
-            <div class="judge-count MISS">MISS <span id="count-MISS">0</span></div>
-        </div>
-
-        <div class="panel-section">
-            <h3>판정 오차 분포</h3>
-            <div id="error-chart" style="display: flex; align-items: flex-end; justify-content: space-between; height: 100px; background: #080808; padding: 10px 5px; border-radius: 4px; border: 1px solid #222;">
+    <div id="side-panel" class="sidebar closed">
+        <button id="btn-sidebar-toggle" class="toggle-btn">◀</button>
+        <div class="sidebar-content">
+            <div class="panel-section">
+                <h3>구동 상태 [Space]</h3>
+                <div id="status-text" class="STATUS">READY</div>
+            </div>
+            
+            <div class="panel-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <h3>마스터 볼륨</h3>
+                    <span id="volume-val" style="color: #00ffcc; font-weight: bold; font-family: monospace;">100%</span>
                 </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-top: 4px;">
-                <span>FAST (-125)</span>
-                <span style="color: #00ffcc;">0</span>
-                <span>SLOW (+125)</span>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" style="width: 100%; accent-color: #00ffcc; cursor: pointer;">
             </div>
-        </div>
 
-        <div class="panel-section">
-            <h3>속도 및 밀도 설정</h3>
-            <div class="setting-item">
-                <label for="scroll-time">스크롤 타임(ms):</label>
-                <input type="number" id="scroll-time" value="700" step="50" min="100">
+            <div class="panel-section">
+                <h3>실시간 판정</h3>
+                <div class="judge-count PERFECT">PERFECT <span id="count-PERFECT">0</span></div>
+                <div class="judge-count GREAT">GREAT <span id="count-GREAT">0</span></div>
+                <div class="judge-count GOOD">GOOD <span id="count-GOOD">0</span></div>
+                <div class="judge-count OK">OK <span id="count-OK">0</span></div>
+                <div class="judge-count MEH">MEH <span id="count-MEH">0</span></div>
+                <div class="judge-count MISS">MISS <span id="count-MISS">0</span></div>
             </div>
-            <div class="setting-item">
-                <label for="base-density">표준 밀도(ms):</label>
-                <input type="number" id="base-density" value="400" step="50" min="50">
+
+            <div class="panel-section">
+                <h3>판정 오차 분포</h3>
+                <div id="error-chart" style="display: flex; align-items: flex-end; justify-content: space-between; height: 100px; background: #080808; padding: 10px 5px; border-radius: 4px; border: 1px solid #222;">
+                    </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-top: 4px;">
+                    <span>FAST (-125)</span>
+                    <span style="color: #00ffcc;">0</span>
+                    <span>SLOW (+125)</span>
+                </div>
             </div>
-        </div>
 
-        <div class="panel-section" style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="btn" id="btn-reset">스코어 초기화</button>
-            <button class="btn" id="btn-share" style="background-color: #2ecc71;">현재 패턴 URL 복사</button>
-            <button class="btn" id="btn-guide" style="background-color: #9b59b6;">패턴 커스텀 / LLM 프롬프트 가이드</button>
-        </div>
+            <div class="panel-section">
+                <h3>속도 및 밀도 설정</h3>
+                <div class="setting-item">
+                    <label for="scroll-time">스크롤 타임(ms):</label>
+                    <input type="number" id="scroll-time" value="700" step="50" min="100">
+                </div>
+                <div class="setting-item">
+                    <label for="base-density">표준 밀도(ms):</label>
+                    <input type="number" id="base-density" value="400" step="50" min="50">
+                </div>
+            </div>
 
-        <div class="panel-section">
-            <h3>패턴 직접 입력 (JSON 배열)</h3>
-            <textarea id="txt-pattern-input" style="width: 100%; height: 120px; background-color: #0d0d0d; color: #00ffcc; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="[[0, 400, 2, 1.0], [1, 400, 1, 1.0]] 형태로 입력하세요"></textarea>
-            <button class="btn" id="btn-apply-pattern" style="background-color: #34495e; margin-top: 8px; padding: 8px; font-size: 13px;">작성한 패턴 적용하기</button>
-        </div>
+            <div class="panel-section" style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn" id="btn-reset">스코어 초기화</button>
+                <button class="btn" id="btn-share" style="background-color: #2ecc71;">현재 패턴 URL 복사</button>
+                <button class="btn" id="btn-guide" style="background-color: #9b59b6;">패턴 커스텀 / LLM 프롬프트 가이드</button>
+            </div>
 
-        <div id="guide-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px;">
-            <div style="background: #1e1e1e; width: 100%; max-width: 600px; max-height: 85vh; border-radius: 8px; border: 2px solid #333; padding: 25px; overflow-y: auto; font-size: 14px; line-height: 1.6;">
-                <h2 style="margin-top: 0; color: #9b59b6;">🥁 패턴 커스텀 & LLM 작성 가이드</h2>
-                <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
-                
-                <h4 style="color: #00ffcc; margin-bottom: 5px;">1. 데이터 작성 문법</h4>
-                <p style="margin: 0 0 10px 0; color: #ccc;">패턴은 <code>[레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치]</code> 형태의 배열 구조입니다.</p>
-                <ul style="padding-left: 20px; margin: 0 0 15px 0; color: #aaa;">
-                    <li><b>레인:</b> 0(D), 1(F), 2(J), 3(K)</li>
-                    <li><b>지연ms:</b> 현재 노트를 떨군 후 다음 노트까지 대기 시간 (0이면 동시치기)</li>
-                    <li><b>소리번호:</b> -1(땡-미스음), 0(딱), 1(스네어), 2(베이스), 3(탐탐), 4(하이햇), 5(피아노)</li>
-                    <li><b>피치/음계:</b> 소리번호가 5(피아노)일 때는 반음 단위의 음계 번호로 작동하며, 그 외 드럼은 배음 배율로 작동합니다. (소수점은 자동 반올림)</li>
-                    <li><b>롱노트유지ms:</b> 롱노트가 판정선에 머무르는 총 길이입니다. 일반 단노트로 만들고 싶다면 <code>null</code>을 입력하면 되며, 이 경우 6~9번 인자도 모두 <code>null</code>로 채웁니다.</li>
-                    <li><b>유지소리, 유지피치:</b> 롱노트를 누르고 있는 동안('HOLDING') 길게 이어질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
-                    <li><b>끝소리, 끝피치:</b> 롱노트가 끝나서 손을 정확히 뗄 때('RELEASE') 찰나에 터질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
-                </ul>
+            <div class="panel-section">
+                <h3>패턴 직접 입력 (JSON 배열)</h3>
+                <textarea id="txt-pattern-input" style="width: 100%; height: 120px; background-color: #0d0d0d; color: #00ffcc; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="[[0, 400, 2, 1.0], [1, 400, 1, 1.0]] 형태로 입력하세요"></textarea>
+                <button class="btn" id="btn-apply-pattern" style="background-color: #34495e; margin-top: 8px; padding: 8px; font-size: 13px;">작성한 패턴 적용하기</button>
+            </div>
 
-                <h4 style="color: #00ffcc; margin-bottom: 5px;">2. AI(LLM)에게 제작을 요청하는 치트 프롬프트</h4>
-                <p style="margin: 0 0 5px 0; color: #ccc;">아래 문장을 복사해서 ChatGPT, Gemini 같은 AI에게 주면 알아서 코드를 짜줍니다:</p>
-                <div style="background: #0d0d0d; padding: 12px; border-radius: 4px; border: 1px solid #444; font-family: monospace; color: #e2e2e2; white-space: pre-wrap; word-break: break-all; font-size: 12px; user-select: all; cursor: pointer;" title="클릭하여 전체 선택">너는 리듬게임 전문 채보(패턴) 제작자야. 아래 확장된 문법 규격을 완벽히 숙지하고, 연타의 손맛과 롱노트의 재미가 살아있는 [레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치] 형태의 자바스크립트 2차원 배열 채보 데이터를 하나 만들어줘. 다른 부연 설명이나 주석은 일절 제외하고 순수 대괄호 JSON 배열 데이터만 출력해줘.
+            <div id="guide-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px;">
+                <div style="background: #1e1e1e; width: 100%; max-width: 600px; max-height: 85vh; border-radius: 8px; border: 2px solid #333; padding: 25px; overflow-y: auto; font-size: 14px; line-height: 1.6;">
+                    <h2 style="margin-top: 0; color: #9b59b6;">🥁 패턴 커스텀 & LLM 작성 가이드</h2>
+                    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+                    
+                    <h4 style="color: #00ffcc; margin-bottom: 5px;">1. 데이터 작성 문법</h4>
+                    <p style="margin: 0 0 10px 0; color: #ccc;">패턴은 <code>[레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치]</code> 형태의 배열 구조입니다.</p>
+                    <ul style="padding-left: 20px; margin: 0 0 15px 0; color: #aaa;">
+                        <li><b>레인:</b> 0(D), 1(F), 2(J), 3(K)</li>
+                        <li><b>지연ms:</b> 현재 노트를 떨군 후 다음 노트까지 대기 시간 (0이면 동시치기)</li>
+                        <li><b>소리번호:</b> -1(땡-미스음), 0(딱), 1(스네어), 2(베이스), 3(탐탐), 4(하이햇), 5(피아노)</li>
+                        <li><b>피치/음계:</b> 소리번호가 5(피아노)일 때는 반음 단위의 음계 번호로 작동하며, 그 외 드럼은 배음 배율로 작동합니다. (소수점은 자동 반올림)</li>
+                        <li><b>롱노트유지ms:</b> 롱노트가 판정선에 머무르는 총 길이입니다. 일반 단노트로 만들고 싶다면 <code>null</code>을 입력하면 되며, 이 경우 6~9번 인자도 모두 <code>null</code>로 채웁니다.</li>
+                        <li><b>유지소리, 유지피치:</b> 롱노트를 누르고 있는 동안('HOLDING') 길게 이어질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
+                        <li><b>끝소리, 끝피치:</b> 롱노트가 끝나서 손을 정확히 뗄 때('RELEASE') 찰나에 터질 소리 번호와 피치입니다. (없으면 <code>null</code>)</li>
+                    </ul>
 
-[채보 규칙 및 조건]
-1. 레인: 0=D, 1=F, 2=J, 3=K
-2. 지연ms가 0이면 동시치기 연출이 됨. 보통 8비트 속도는 200~250ms, 고속 16비트 계단 연타는 100~120ms 단위가 적당함.
-3. 소리번호 5번은 피아노이며, 이때 4번 인자는 반음 음계 번호임 (0=도, 2=레, 4=미, 5=파, 7=솔, 9=라, 11=시, 12=옥타브 위 도).
-4. 단노트는 뒤쪽 5개 인자를 모두 null로 처리할 것. 예: [0, 230, 5, 4, null, null, null, null, null]
-5. 롱노트가 끝나는 타이밍(유지 시간이 끝나는 지점)과 동시에 "같은 레인"에서 다음 노트가 곧바로 시작되는 무리한 배치는 유저가 처리하기 힘드므로 절대 금지할 것. 롱노트가 끝나면 최소한 한 박자 이상 해당 레인을 비워주거나 다른 레인으로 노트를 넘겨줘.
-6. 웅장한 빌드업, 고속 계단 난타, 그리고 한 손으로 롱노트를 누르면서 다른 손으로 트릴을 치는 복합 패턴을 섞어서 1분 내외 분량의 완성도 높은 피아노 곡을 짜줘.</div>
-                
-                <button id="btn-close-guide" style="margin-top: 25px; width: 100%; padding: 12px; background: #e74c3c; border: none; color: #fff; font-weight: bold; border-radius: 4px; cursor: pointer;">닫기</button>
+                    <h4 style="color: #00ffcc; margin-bottom: 5px;">2. AI(LLM)에게 제작을 요청하는 프롬프트</h4>
+                    <p style="margin: 0 0 5px 0; color: #ccc;">아래 문장을 복사해서 ChatGPT, Gemini 같은 AI에게 주면 알아서 코드를 짜줍니다:</p>
+                    <div style="background: #0d0d0d; padding: 12px; border-radius: 4px; border: 1px solid #444; font-family: monospace; color: #e2e2e2; white-space: pre-wrap; word-break: break-all; font-size: 12px; user-select: all; cursor: pointer;" title="클릭하여 전체 선택">너는 리듬게임 전문 채보(패턴) 제작자야. 아래 확장된 문법 규격을 완벽히 숙지하고, 연타의 손맛과 롱노트의 재미가 살아있는 [레인, 지연ms, 소리번호, 피치/음계, 롱노트유지ms, 유지소리, 유지피치, 끝소리, 끝피치] 형태의 자바스크립트 2차원 배열 채보 데이터를 하나 만들어줘. 다른 부연 설명이나 주석은 일절 제외하고 순수 대괄호 JSON 배열 데이터만 출력해줘.
+
+    [채보 규칙 및 조건]
+    1. 레인: 0=D, 1=F, 2=J, 3=K
+    2. 지연ms가 0이면 동시치기 연출이 됨. 보통 8비트 속도는 200~250ms, 고속 16비트 계단 연타는 100~120ms 단위가 적당함.
+    3. 소리번호 5번은 피아노이며, 이때 4번 인자는 반음 음계 번호임 (0=도, 2=레, 4=미, 5=파, 7=솔, 9=라, 11=시, 12=옥타브 위 도).
+    4. 단노트는 뒤쪽 5개 인자를 기입하지 않아도 됨. 예: [0, 230, 5, 4]
+    5. 롱노트가 끝나는 타이밍(유지 시간이 끝나는 지점)과 동시에 "같은 레인"에서 다음 노트가 곧바로 시작되는 무리한 배치는 유저가 처리하기 힘드므로 절대 금지할 것. 롱노트가 끝나면 최소한 한 박자 이상 해당 레인을 비워주거나 다른 레인으로 노트를 넘겨줘.
+    6. 웅장한 빌드업, 고속 계단 난타, 그리고 한 손으로 롱노트를 누르면서 다른 손으로 트릴을 치는 복합 패턴을 섞어서 1분 내외 분량의 완성도 높은 피아노 곡을 짜줘.</div>
+                    
+                    <button id="btn-close-guide" style="margin-top: 25px; width: 100%; padding: 12px; background: #e74c3c; border: none; color: #fff; font-weight: bold; border-radius: 4px; cursor: pointer;">닫기</button>
+                </div>
             </div>
         </div>
     </div>
 
 <script>
-// --- [ 오디오 시스템 추가 ] ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-// 드럼 사운드 신시사이저 함수
-function playDrum(type, pitch = 1) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const now = audioCtx.currentTime;
-    
-    // -1번: 예능 정답 오답용 '땡!' 사운드 (금속성 벨 사운드 합성)
-    if (type === -1) {
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        
-        // 맑은 "땡" 소리를 만드는 2옥타브 이상의 고음 주파수 복합 구성
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(880 * pitch, now); // 기본 A5 음역대
-        
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(1200 * pitch, now); // 금속성 배음 유도
-        
-        // 소리가 켜졌다가 잔향이 남으며 서서히 사라지는 볼륨 곡선
-        gain.gain.setValueAtTime(0.4, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 여운 지속
-        
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc1.start(now); osc1.stop(now + 0.8);
-        osc2.start(now); osc2.stop(now + 0.8);
-    }
-    // 0번: '딱' (메트로놈/틱 사운드)
-    else if (type === 0) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1000 * pitch, now);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(now); osc.stop(now + 0.06);
-    }
-    // 1번: 스네어 드럼 (화이트 노이즈 + 스냅)
-    else if (type === 1) {
-        // 노이즈 생성
-        const bufferSize = audioCtx.sampleRate * 0.2;
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        
-        const noise = audioCtx.createBufferSource();
-        noise.buffer = buffer;
-        
-        const noiseFilter = audioCtx.createBiquadFilter();
-        noiseFilter.type = 'highpass';
-        noiseFilter.frequency.value = 1000 * pitch;
-
-        const noiseGain = audioCtx.createGain();
-        noiseGain.gain.setValueAtTime(0.3, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-        noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
-        noise.start(now);
-    }
-    // 2번: 베이스 드럼 (쿵 - 로우 주파수 드롭)
-    else if (type === 2) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(150 * pitch, now);
-        osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.12);
-        gain.gain.setValueAtTime(0.6, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(now); osc.stop(now + 0.16);
-    }
-    // 3번: 탐탐 (중저음 둥 - 미디엄 주파수 드롭)
-    else if (type === 3) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(300 * pitch, now);
-        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-        gain.gain.setValueAtTime(0.4, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(now); osc.stop(now + 0.2);
-    }
-    // 4번: 하이햇 (챳 - 초고음 하이패스 노이즈)
-    else if (type === 4) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(10000 * pitch, now);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(now); osc.stop(now + 0.05);
-    }
-    // 5번: 피아노 (부드러운 배음 구조와 자연스러운 디케이)
-    else if (type === 5) {
-        // 소수점 반올림 처리하여 정수 음계로 변환
-        const noteOffset = Math.round(pitch); 
-        
-        // 기준음: C4(도) = 261.63Hz -> 반음씩 올라가는 공식: 주파수 = 261.63 * 2^(오프셋/12)
-        const targetFrequency = 261.63 * Math.pow(2, noteOffset / 12);
-
-        // 정교한 피아노 톤을 위한 멀티 오실레이터 세팅 (FM 신시사이저 방식)
-        const carrier = audioCtx.createOscillator();   // 기본 알맹이 톤
-        const modulator = audioCtx.createOscillator(); // 쇠소리 배음 타격감 담당
-        const modGain = audioCtx.createGain();
-        const mainGain = audioCtx.createGain();
-        const filter = audioCtx.createBiquadFilter();
-
-        // 1. 커리어 (기본 사인파)
-        carrier.type = 'sine';
-        carrier.frequency.setValueAtTime(targetFrequency, now);
-
-        // 2. 모듈레이터 (타격 순간 쨍한 느낌을 주는 삼각파)
-        modulator.type = 'triangle';
-        modulator.frequency.setValueAtTime(targetFrequency * 2, now); // 2배음
-        modGain.gain.setValueAtTime(targetFrequency * 1.5, now);      // 변조 깊이
-        modGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);  // 타격 직후 소멸
-
-        // 3. 로우패스 필터로 부드러운 잔향 유도
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(targetFrequency * 4, now);
-        filter.frequency.exponentialRampToValueAtTime(targetFrequency * 1.2, now + 0.4);
-
-        // 4. 볼륨 엔벨로프 (피아노 특유의 감쇠)
-        mainGain.gain.setValueAtTime(0.5, now);
-        mainGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 자연스러운 감쇠
-
-        // 연결 회로 구성
-        modulator.connect(modGain);
-        modGain.connect(carrier.frequency); // 주파수 변조(FM) 적용
-        carrier.connect(filter);
-        filter.connect(mainGain);
-        mainGain.connect(audioCtx.destination);
-
-        // 재생 시작 및 종료
-        modulator.start(now); modulator.stop(now + 0.8);
-        carrier.start(now);   carrier.stop(now + 0.8);
-    }
-}
-// 롱노트 전용 루프 오디오
-function startHoldSound(type, pitch) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    
-    // 피아노(5번) 계열이면 음계 공식 적용, 그 외 드럼은 기존 피치 공식 적용
-    let freq = 440;
-    if (type === 5) {
-        freq = 261.63 * Math.pow(2, Math.round(pitch) / 12);
-        osc.type = 'triangle'; // 부드러운 지속음
-    } else {
-        freq = (type === 2 ? 60 : type === 3 ? 150 : 300) * pitch;
-        osc.type = 'sine';
-    }
-    
-    osc.frequency.setValueAtTime(freq, now);
-    
-    // 누르기 시작할 때 뚝 끊기는 소리(Pop 노이즈) 방지를 위해 0.03초간 페이드인
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.03); 
-    
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(now);
-    
-    // 이 객체 자체를 리턴하여 나중에 꺼버릴 수 있도록 제어권을 줍니다.
-    return { osc, gain };
-}
-
 // --- [ 커스텀 패턴 데이터 세팅 ] ---
 // 규칙 1: 단일 숫자 형태 -> 입력된 순서대로 타격, 간격은 대시보드의 '표준 밀도' 적용
 // 규칙 2: [라인, 간격ms] 형태 -> 지정한 라인에 노트를 떨구고, '해당 노트가 나온 뒤' 적힌 ms만큼 쉬고 다음 노트 대기
@@ -624,6 +516,214 @@ window.addEventListener('resize', () => {
     gearHeight = container.clientHeight;
     judgeLineY = gearHeight - 120;
 });
+
+// --- [ 오디오 시스템 추가 ] ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// --- [ 마스터 볼륨 제어 시스템 ] ---
+let masterGainNode = null;
+let currentVolume = 1.0; // 기본 볼륨 100%
+
+function initVolumeSystem() {
+    // AudioContext가 생성된 직후나 첫 상호작용 시점에 마스터 게인 노드를 생성합니다.
+    if (!masterGainNode && typeof audioCtx !== 'undefined') {
+        masterGainNode = audioCtx.createGain();
+        masterGainNode.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
+        // 마스터 게인 노드를 최종 출력 장치에 연결
+        masterGainNode.connect(audioCtx.destination);
+    }
+
+    const slider = document.getElementById('volume-slider');
+    const valText = document.getElementById('volume-val');
+
+    if (slider && valText) {
+        slider.addEventListener('input', (e) => {
+            currentVolume = parseFloat(e.target.value);
+            valText.innerText = `${Math.round(currentVolume * 100)}%`;
+            
+            // 실시간 볼륨 적용
+            if (masterGainNode) {
+                masterGainNode.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
+            }
+        });
+    }
+}
+
+// 초기화 실행
+initVolumeSystem();
+
+
+// 드럼 사운드 신시사이저 함수
+function playDrum(type, pitch = 1) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    
+    // -1번: 예능 정답 오답용 '땡!' 사운드 (금속성 벨 사운드 합성)
+    if (type === -1) {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        // 맑은 "땡" 소리를 만드는 2옥타브 이상의 고음 주파수 복합 구성
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880 * pitch, now); // 기본 A5 음역대
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1200 * pitch, now); // 금속성 배음 유도
+        
+        // 소리가 켜졌다가 잔향이 남으며 서서히 사라지는 볼륨 곡선
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 여운 지속
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(masterGainNode || audioCtx.destination);
+        
+        osc1.start(now); osc1.stop(now + 0.8);
+        osc2.start(now); osc2.stop(now + 0.8);
+    }
+    // 0번: '딱' (메트로놈/틱 사운드)
+    else if (type === 0) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000 * pitch, now);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain).connect(masterGainNode || audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.06);
+    }
+    // 1번: 스네어 드럼 (화이트 노이즈 + 스냅)
+    else if (type === 1) {
+        // 노이즈 생성
+        const bufferSize = audioCtx.sampleRate * 0.2;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        
+        const noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.value = 1000 * pitch;
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.3, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        noise.connect(noiseFilter).connect(noiseGain).connect(masterGainNode || audioCtx.destination);
+        noise.start(now);
+    }
+    // 2번: 베이스 드럼 (쿵 - 로우 주파수 드롭)
+    else if (type === 2) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(150 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.12);
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain).connect(masterGainNode || audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.16);
+    }
+    // 3번: 탐탐 (중저음 둥 - 미디엄 주파수 드롭)
+    else if (type === 3) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(300 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain).connect(masterGainNode || audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+    }
+    // 4번: 하이햇 (챳 - 초고음 하이패스 노이즈)
+    else if (type === 4) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(10000 * pitch, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.connect(gain).connect(masterGainNode || audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.05);
+    }
+    // 5번: 피아노 (부드러운 배음 구조와 자연스러운 디케이)
+    else if (type === 5) {
+        // 소수점 반올림 처리하여 정수 음계로 변환
+        const noteOffset = Math.round(pitch); 
+        
+        // 기준음: C4(도) = 261.63Hz -> 반음씩 올라가는 공식: 주파수 = 261.63 * 2^(오프셋/12)
+        const targetFrequency = 261.63 * Math.pow(2, noteOffset / 12);
+
+        // 정교한 피아노 톤을 위한 멀티 오실레이터 세팅 (FM 신시사이저 방식)
+        const carrier = audioCtx.createOscillator();   // 기본 알맹이 톤
+        const modulator = audioCtx.createOscillator(); // 쇠소리 배음 타격감 담당
+        const modGain = audioCtx.createGain();
+        const mainGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+
+        // 1. 커리어 (기본 사인파)
+        carrier.type = 'sine';
+        carrier.frequency.setValueAtTime(targetFrequency, now);
+
+        // 2. 모듈레이터 (타격 순간 쨍한 느낌을 주는 삼각파)
+        modulator.type = 'triangle';
+        modulator.frequency.setValueAtTime(targetFrequency * 2, now); // 2배음
+        modGain.gain.setValueAtTime(targetFrequency * 1.5, now);      // 변조 깊이
+        modGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);  // 타격 직후 소멸
+
+        // 3. 로우패스 필터로 부드러운 잔향 유도
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(targetFrequency * 4, now);
+        filter.frequency.exponentialRampToValueAtTime(targetFrequency * 1.2, now + 0.4);
+
+        // 4. 볼륨 엔벨로프 (피아노 특유의 감쇠)
+        mainGain.gain.setValueAtTime(0.5, now);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); // 0.8초 동안 자연스러운 감쇠
+
+        // 연결 회로 구성
+        modulator.connect(modGain);
+        modGain.connect(carrier.frequency); // 주파수 변조(FM) 적용
+        carrier.connect(filter);
+        filter.connect(mainGain);
+        mainGain.connect(masterGainNode || audioCtx.destination);
+
+        // 재생 시작 및 종료
+        modulator.start(now); modulator.stop(now + 0.8);
+        carrier.start(now);   carrier.stop(now + 0.8);
+    }
+}
+// 롱노트 전용 루프 오디오
+function startHoldSound(type, pitch) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    // 피아노(5번) 계열이면 음계 공식 적용, 그 외 드럼은 기존 피치 공식 적용
+    let freq = 440;
+    if (type === 5) {
+        freq = 261.63 * Math.pow(2, Math.round(pitch) / 12);
+        osc.type = 'triangle'; // 부드러운 지속음
+    } else {
+        freq = (type === 2 ? 60 : type === 3 ? 150 : 300) * pitch;
+        osc.type = 'sine';
+    }
+    
+    osc.frequency.setValueAtTime(freq, now);
+    
+    // 누르기 시작할 때 뚝 끊기는 소리(Pop 노이즈) 방지를 위해 0.03초간 페이드인
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.03); 
+    
+    osc.connect(gain).connect(masterGainNode || audioCtx.destination);
+    osc.start(now);
+    
+    return { osc, gain };
+}
 
 // --- [ 게임 루프 코어 ] ---
 function gameLoop(timestamp) {
@@ -1116,6 +1216,28 @@ document.getElementById('btn-apply-pattern').addEventListener('click', applyCust
 // 로드가 끝나는 시점에 텍스트창 채우기
 setTimeout(updateInputAreaWithCurrent, 200);
 
+function initSidebarToggle() {
+    const sidebar = document.getElementById('side-panel');
+    const toggleBtn = document.getElementById('btn-sidebar-toggle');
+
+    if (sidebar && toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            // closed 클래스 토글 (있으면 제거, 없으면 추가)
+            sidebar.classList.toggle('closed');
+            
+            // 사이드바 상태에 따라 버튼 화살표 방향 변경
+            if (sidebar.classList.contains('closed')) {
+                toggleBtn.innerText = '◀'; // 닫혀있을 땐 열기 화살표
+            } else {
+                toggleBtn.innerText = '▶'; // 열려있을 땐 닫기 화살표
+            }
+        });
+    }
+}
+
+// 구동 초기화
+initSidebarToggle();
+
 // --- [ 이벤트 바인딩 ] ---
 window.addEventListener('keydown', (e) => {
     if (e.key === ' ') {
@@ -1155,6 +1277,15 @@ document.getElementById('base-density').addEventListener('input', (e) => {
 });
 
 document.getElementById('btn-reset').addEventListener('click', resetScore);
+
+slider.addEventListener('mousedown', () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            if (!masterGainNode) initVolumeSystem();
+        });
+    }
+});
+
 </script>
 </body>
 </html>
